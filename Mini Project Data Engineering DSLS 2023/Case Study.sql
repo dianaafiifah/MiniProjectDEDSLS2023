@@ -1,67 +1,58 @@
 -- Anda dibebaskan memilih minimal 3 dari 8 analisis yang bisa dilakukan kemudian uraikan objektif yang ingin dilakukan.
--- Setelah memilih 3 analisis pilihan, silakan uraikan analisis yang ingin dilakukan. Masing-masing analisis minimal 2 uraian dan di dalam query wajib menggunakan salah dua dari beberapa query berikut:
+-- Setelah memilih 3 analisis pilihan, silakan uraikan analisis yang ingin dilakukan.
+-- Masing-masing analisis minimal 2 uraian dan di dalam query wajib menggunakan salah dua dari beberapa query berikut:
 -- Aggregation dan Window Function | Join | Subquery | CTE (with … as …)
 -- Filtering (having dan where) | Condition (case when) | String function
 
--- Objektif 0: Menganalisis data penjualan dari Northwind database untuk mengidentifikasi tren kunci dan insights, yaitu:
--- 1) produk dengan penjualan tertinggi;
--- 2) kinerja karyawan berdasarkan penjualan tertinggi; dan
--- 3) segmen pelanggan dengan pembelian tertinggi
-
 USE Northwind;
 
--- Objektif 1: analisis produk dengan penjualan tertinggi
-WITH GrandTotalTable AS (
-  SELECT SUM(od.UnitPrice * od.Quantity) AS GrandTotalSales,
-         SUM(od.Quantity) AS GrandTotalQuantitySold
-  FROM [Order Details] od
-)
-SELECT
+--1) sales trend analysis
+--   to understand how our sales revenue have increased over the year
+
+SELECT 
+    LEFT(DATENAME(month, o.OrderDate), 3) AS MonthName,
+    SUM(UnitPrice * Quantity) AS TotalSales
+FROM Orders o
+INNER JOIN [Order Details] od ON o.OrderID = od.OrderID
+WHERE YEAR(o.OrderDate) = 1997
+GROUP BY MONTH(o.OrderDate), DATENAME(month, o.OrderDate)
+ORDER BY Month(o.OrderDate);
+
+--2) top product analysis
+--   to understand which products contributed the most to total revenue
+
+SELECT TOP 10
 	p.ProductName,
-	CONVERT(DECIMAL(10, 2),SUM(od.Quantity)) AS TotalQuantitySold,
-	CONVERT(DECIMAL(10, 2),SUM(od.Quantity)) / CONVERT(DECIMAL(10,2),GrandTotalQuantitySold) * 100 AS PercentageOfTotalQuantitySold,
-	SUM(od.UnitPrice * od.Quantity) AS TotalSales, 
-	SUM(od.UnitPrice * od.Quantity) / GrandTotalSales * 100 AS PercentageOfTotalSales
-FROM [Order Details] od
+	SUM(od.UnitPrice * od.Quantity) AS TotalSales
+FROM Orders o
+INNER JOIN [Order Details] od ON o.OrderID = od.OrderID
 INNER JOIN Products p ON od.ProductID = p.ProductID
-CROSS JOIN GrandTotalTable gtt
-GROUP BY p.ProductName, gtt.GrandTotalQuantitySold, gtt.GrandTotalSales
+WHERE YEAR(o.OrderDate) IN ('1997', '1996')
+GROUP BY p.ProductName
 ORDER BY TotalSales DESC;
 
--- Objektif 2: analisis kinerja karyawan berdasarkan penjualan tertinggi
-WITH EmployeeSalesTable AS (
-  SELECT o.EmployeeID, SUM(od.UnitPrice * od.Quantity) AS TotalSales
-  FROM Orders o
-  JOIN [Order Details] od ON o.OrderID = od.OrderID
-  GROUP BY o.EmployeeID
-)
+--3) employee effectiveness analysis
+--   to understand how our employee effectiveness differed by country
 
-SELECT e.FirstName + ' ' + e.LastName AS Name,
-	   TotalSales, 
-       CASE 
-          WHEN TotalSales > (SELECT AVG(TotalSales) FROM EmployeeSalesTable) THEN 'Above Average'
-          ELSE 'Below Average'
-       END AS SalesPerformance
-FROM Employees e
-JOIN EmployeeSalesTable est ON e.EmployeeID = est.EmployeeID
-ORDER BY TotalSales DESC;
-
--- Objektif 3: analisis segmen pelanggan dengan pembelian tertinggi
-WITH CustomerSales AS (
-  SELECT c.Country, c.City, SUM(od.UnitPrice * od.Quantity) as TotalSales
-  FROM Orders o
-  JOIN [Order Details] od ON o.OrderID = od.OrderID
-  JOIN Customers c ON o.CustomerID = c.CustomerID
-  GROUP BY c.Country, c.City
+WITH CTE AS (
+    SELECT e.Country, c.CategoryName, SUM(od.Quantity * od.UnitPrice) AS TotalSales
+    FROM Orders o
+    INNER JOIN [Order Details] od ON o.OrderID = od.OrderID
+    INNER JOIN Products p ON od.ProductID = p.ProductID
+    INNER JOIN Categories c ON p.CategoryID = c.CategoryID
+    INNER JOIN Employees e ON o.EmployeeID = e.EmployeeID
+	WHERE YEAR(o.OrderDate) IN ('1997', '1996')
+    GROUP BY e.Country, c.CategoryName
 )
-
-SELECT Country, City, TotalSales,
-       RANK() OVER (PARTITION BY Country ORDER BY TotalSales DESC) as Rank
-FROM CustomerSales
-WHERE Country IN (
-    SELECT Country
-    FROM CustomerSales
-    GROUP BY Country
-    HAVING SUM(TotalSales) > (SELECT AVG(TotalSales) FROM CustomerSales)
-)
-ORDER BY Country, Rank;
+SELECT 
+    Country, 
+    SUM(CASE WHEN CategoryName = 'Beverages' THEN TotalSales ELSE 0 END) AS Beverages,
+    SUM(CASE WHEN CategoryName = 'Condiments' THEN TotalSales ELSE 0 END) AS Condiments,
+    SUM(CASE WHEN CategoryName = 'Confections' THEN TotalSales ELSE 0 END) AS Confections,
+	SUM(CASE WHEN CategoryName = 'Dairy Products' THEN TotalSales ELSE 0 END) AS [Dairy Products],
+	SUM(CASE WHEN CategoryName = 'Grains/Cereals' THEN TotalSales ELSE 0 END) AS [Grains/Cereals],
+    SUM(CASE WHEN CategoryName = 'Meat/Poultry' THEN TotalSales ELSE 0 END) AS [Meat/Poultry],
+    SUM(CASE WHEN CategoryName = 'Produce' THEN TotalSales ELSE 0 END) AS Produce,
+	SUM(CASE WHEN CategoryName = 'Seafood' THEN TotalSales ELSE 0 END) AS Seafood
+FROM CTE
+GROUP BY Country;
