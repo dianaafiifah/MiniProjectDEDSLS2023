@@ -10,13 +10,13 @@ USE Northwind;
 --   to understand how our sales revenue have increased over the year
 
 SELECT 
-    LEFT(DATENAME(month, o.OrderDate), 3) AS MonthName,
-    SUM(UnitPrice * Quantity) AS TotalSales
+    LEFT(DATENAME(MONTH, o.OrderDate), 3) AS MonthName,
+    SUM(od.UnitPrice * od.Quantity) AS TotalSales
 FROM Orders o
 INNER JOIN [Order Details] od ON o.OrderID = od.OrderID
 WHERE YEAR(o.OrderDate) = 1997
-GROUP BY MONTH(o.OrderDate), DATENAME(month, o.OrderDate)
-ORDER BY Month(o.OrderDate);
+GROUP BY MONTH(o.OrderDate), DATENAME(MONTH, o.OrderDate)
+ORDER BY MONTH(o.OrderDate);
 
 --2) top product analysis
 --   to understand which products contributed the most to total revenue
