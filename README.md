@@ -14,7 +14,7 @@ This repository contains the deliverables for Mini Project by Data Science Learn
 -----
 ⚠The actual deadlines for submissions are the following:  
 - Data Engineering Mini Project - January 29, 2023  
-- Data Analysis Mini Project - February 21, 2023  
-- Data Science Mini Project - February 21, 2023  
+- Data Analysis Mini Project - February 26, 2023  
+- Data Science Mini Project - February 26, 2023  
 
 I have, and might iterate through the deliverables past the deadlines.
